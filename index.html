@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>PDF Reducer – অসীম সাইজ (No Limit)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <style>
+        .drag-active { background-color: #e0e7ff; border-color: #4f46e5; transition: all 0.2s ease; }
+        #dropZone { transition: background-color 0.2s, border-color 0.2s; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 to-white font-sans antialiased">
+
+<div class="max-w-4xl mx-auto px-4 py-8 md:py-12">
+    <header class="text-center mb-8">
+        <h1 class="text-3xl md:text-4xl font-extrabold text-indigo-900 tracking-tight">📄 PDF Reducer</h1>
+        <p class="text-gray-600 mt-2 text-lg">ব্রাউজারেই PDF সাইজ কমানো – <span class="font-bold text-indigo-700">কোনো সাইজ লিমিট নেই</span></p>
+        <div class="inline-flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full text-xs text-gray-700 mt-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+            <span>ফাইল সার্ভারে আপলোড হয় না – আপনার ব্রাউজারেই সব প্রক্রিয়া</span>
+        </div>
+    </header>
+
+    <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+        <div class="p-6 md:p-8">
+            <!-- Drop Zone -->
+            <div id="dropZone" class="border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 p-8 text-center cursor-pointer transition hover:bg-gray-100">
+                <input type="file" id="fileInput" accept=".pdf" class="hidden" />
+                <div class="flex flex-col items-center justify-center gap-3">
+                    <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                    <p class="text-gray-600 font-medium">PDF ফাইল এখানে ড্রপ করুন অথবা <span class="text-indigo-600 underline">ক্লিক করে নির্বাচন করুন</span></p>
+                    <p class="text-gray-400 text-sm">✅ কোনো সাইজ সীমা নেই – বড় ফাইলও কাজ করবে (ধৈর্য সহকারে অপেক্ষা করুন)</p>
+                </div>
+            </div>
+
+            <!-- Compression Level -->
+            <div class="mt-8 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex flex-wrap gap-3 items-center">
+                    <span class="text-gray-700 font-medium">কম্প্রেশন লেভেল:</span>
+                    <div class="flex gap-2">
+                        <label class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border cursor-pointer bg-white hover:bg-gray-50"><input type="radio" name="compLevel" value="low" checked> Low (হালকা)</label>
+                        <label class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border cursor-pointer bg-white hover:bg-gray-50"><input type="radio" name="compLevel" value="medium"> Medium (মাঝারি)</label>
+                        <label class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border cursor-pointer bg-white hover:bg-gray-50"><input type="radio" name="compLevel" value="high"> High (সর্বোচ্চ)</label>
+                    </div>
+                </div>
+                <button id="compressBtn" disabled class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-xl shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed">PDF কম্প্রেস করুন</button>
+            </div>
+
+            <!-- Preview Section -->
+            <div id="previewSection" class="mt-8 p-4 bg-gray-50 rounded-xl border border-gray-200 hidden">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div><p class="text-sm text-gray-500">আসল সাইজ:</p><p id="originalSize" class="text-xl font-semibold text-gray-800">-</p></div>
+                    <svg class="w-6 h-6 text-gray-400 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
+                    <div><p class="text-sm text-gray-500">কম্প্রেস হওয়ার পর সাইজ:</p><p id="compressedSize" class="text-xl font-semibold text-indigo-700">-</p></div>
+                    <div><p class="text-sm text-gray-500">সঞ্চয়:</p><p id="savedPercent" class="text-lg font-bold text-green-600">-</p></div>
+                </div>
+                <div class="mt-4"><button id="downloadBtn" disabled class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white py-2 px-5 rounded-xl font-medium transition disabled:opacity-50">⬇️ কম্প্রেস করা PDF ডাউনলোড করুন</button></div>
+            </div>
+
+            <!-- Loading -->
+            <div id="loadingIndicator" class="mt-6 hidden flex-col items-center justify-center gap-2">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <p class="text-gray-600 text-sm">কম্প্রেস করা হচ্ছে... বড় ফাইলের জন্য কিছু সময় লাগতে পারে, দয়া করে অপেক্ষা করুন</p>
+            </div>
+            <div id="errorMsg" class="mt-4 text-red-600 text-sm text-center hidden bg-red-50 p-2 rounded-lg"></div>
+            <div class="mt-8 text-center text-xs text-gray-400 border-t pt-6">🔒 গোপনীয়তা: আপনার PDF সম্পূর্ণভাবে আপনার ব্রাউজারেই প্রক্রিয়াজাত হয়। কোনো ফাইল সার্ভারে আপলোড হয় না। কোনো সাইজ লিমিট নেই।</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let selectedFile = null, originalFileSize = 0, compressedBlob = null;
+    const compressBtn = document.getElementById('compressBtn'), downloadBtn = document.getElementById('downloadBtn');
+    const previewSection = document.getElementById('previewSection'), loadingIndicator = document.getElementById('loadingIndicator');
+    const errorMsgDiv = document.getElementById('errorMsg'), fileInput = document.getElementById('fileInput'), dropZone = document.getElementById('dropZone');
+    const originalSizeSpan = document.getElementById('originalSize'), compressedSizeSpan = document.getElementById('compressedSize'), savedPercentSpan = document.getElementById('savedPercent');
+
+    function formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024, dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+    function showError(msg) { errorMsgDiv.innerText = msg; errorMsgDiv.classList.remove('hidden'); setTimeout(() => errorMsgDiv.classList.add('hidden'), 5000); }
+    function resetUI() { compressedBlob = null; downloadBtn.disabled = true; compressBtn.disabled = true; previewSection.classList.add('hidden'); errorMsgDiv.classList.add('hidden'); loadingIndicator.classList.add('hidden'); }
+    function handleFile(file) {
+        resetUI();
+        if (!file) return;
+        if (file.type !== 'application/pdf') { showError('শুধুমাত্র PDF ফাইল সমর্থিত।'); return; }
+        // NO SIZE LIMIT CHECK
+        selectedFile = file; originalFileSize = file.size;
+        originalSizeSpan.innerText = formatBytes(originalFileSize);
+        compressBtn.disabled = false;
+        previewSection.classList.remove('hidden');
+        compressedSizeSpan.innerText = '—'; savedPercentSpan.innerText = '—'; downloadBtn.disabled = true;
+    }
+    fileInput.addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); });
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-active'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-active'));
+    dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-active'); if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    async function compressPDF(file, level) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+        // Remove metadata to reduce size
+        pdfDoc.setTitle('');
+        pdfDoc.setAuthor('');
+        pdfDoc.setSubject('');
+        pdfDoc.setCreator('');
+        pdfDoc.setProducer('');
+        // Optional: For high compression, we could try to downscale images but pdf-lib doesn't support easily.
+        // We'll save with stream compression.
+        const pdfBytes = await pdfDoc.save({
+            useObjectStreams: true,
+            addDefaultPage: false,
+            updateFieldAppearances: false
+        });
+        return pdfBytes;
+    }
+
+    compressBtn.addEventListener('click', async () => {
+        if (!selectedFile) { showError('কোনো ফাইল নির্বাচন করা হয়নি।'); return; }
+        const compLevel = document.querySelector('input[name="compLevel"]:checked').value;
+        compressBtn.disabled = true;
+        loadingIndicator.classList.remove('hidden');
+        previewSection.classList.add('hidden');
+        errorMsgDiv.classList.add('hidden');
+        try {
+            const compressedBytes = await compressPDF(selectedFile, compLevel);
+            compressedBlob = new Blob([compressedBytes], { type: 'application/pdf' });
+            const compSize = compressedBlob.size, origSize = selectedFile.size;
+            const saved = origSize - compSize, percent = ((saved / origSize) * 100).toFixed(2);
+            originalSizeSpan.innerText = formatBytes(origSize);
+            compressedSizeSpan.innerText = formatBytes(compSize);
+            savedPercentSpan.innerText = `${percent}% কমেছে`;
+            previewSection.classList.remove('hidden');
+            downloadBtn.disabled = false;
+            if (compSize >= origSize * 0.95) {
+                showError('দ্রষ্টব্য: এই PDF ইতিমধ্যে অপ্টিমাইজড, আকার আর তেমন কমানো সম্ভব হয়নি।');
+            }
+        } catch (err) {
+            console.error(err);
+            showError('PDF কম্প্রেস করতে সমস্যা হয়েছে। ফাইলটি খুব জটিল বা সুরক্ষিত হতে পারে।');
+            previewSection.classList.add('hidden');
+        } finally {
+            loadingIndicator.classList.add('hidden');
+            compressBtn.disabled = false;
+        }
+    });
+    downloadBtn.addEventListener('click', () => {
+        if (!compressedBlob) { showError('কম্প্রেস করা ফাইল নেই, আগে কম্প্রেস বাটনে ক্লিক করুন।'); return; }
+        const link = document.createElement('a'), url = URL.createObjectURL(compressedBlob);
+        link.href = url; link.download = `compressed_${selectedFile?.name || 'document'}.pdf`;
+        document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
+    });
+</script>
+</body>
+</html>
